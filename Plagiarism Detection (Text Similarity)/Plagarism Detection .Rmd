@@ -1,0 +1,82 @@
+---
+title: "Plagarism Detection"
+author: "Linh Phan"
+date: "2/22/2023"
+output: html_document
+---
+## Lab Excercise 
+For this lab excercise we will be focusing more on Minhash, Locality Sensitive Hashingn(LSH) and Jaccard Similiarity and specifically we will be analyzing the Jaccard Similarity of publications. We will be using the same dataset from above, the eight publications from the American Tract Society publications
+
+The goal of this excercise is to learn how to  examine the Jaccard Similarity in a more efficent manner using Minhash and LSH. 
+
+*Minhash  is a technique for quickly estimating how similar two sets are. 
+
+*Locality Sensitive Hashing is an algorithmic technique that hashes similar input items into the same "buckets" with high probability.
+
+*Jaccard Similarity is a measure to assess how similar or distinct two items are, for our case, 
+how similar or distinct two piece of texts are. The coefficients will be numbers between 0 and 1.  The higher the number the more similar the two sets are. We can use the textreuse package in R to 
+calculate the Jaccard Similarity between documents. 
+
+To begin we want to install and load the packages we will need. The main package we
+will be using for this exercise is the textreuse package: 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#install.packages("textreuse")
+library(textreuse)
+library(tidyverse)
+library(dplyr)
+library(rvest)
+
+```
+
+
+After loading our packages, we want to retrieve the data for the exercise. The textreuse package
+has the data already, so we just have to retrieve it. We use this data (the eight publications) to 
+create a corpus. In addition, we want to create a minhash function
+```{r setup, include=FALSE}
+
+minhash <- minhash_generator(n = 240, seed = 3552)
+head(minhash(c("turn tokens into", "tokens into hashes", "into hashes fast")))
+
+dir <- system.file("extdata/ats", package = "textreuse")
+corpus <- TextReuseCorpus(dir = dir, tokenizer = tokenize_ngrams, n = 5,
+                          minhash_func = minhash, keep_tokens = TRUE,
+                          progress = FALSE)
+
+## Make sure to verify that your corpus contains minhashes
+head(minhashes(corpus[[1]]))
+length(minhashes(corpus[[1]])) 
+```
+
+The next step is to use the locality-sensitive hashing algorithm to find suitable pairs for comparison.
+The lsh_threshold function is used to determine the minimum Jaccard similarity for two documents for them to likely be considered a match. 
+```{r, message = FALSE}
+
+lsh_threshold(h = 240, b = 80) #h is the number of minhash signatures 
+#b is the number of LSH bands 
+
+
+```
+
+With the function above, we found that the minimum Jaccard Similiarty should be around 0.232. 
+Now we can use the lsh() function to calculate the locality-sensitive hashes for our documents. Afterwards we utilize the buckets we made to determine potential matches. 
+
+To note:The lsh_candidates only identifies potential matches, but cannot estimate the actual similarity of
+the documents. 
+```{r, message = FALSE}
+
+buckets <- lsh(corpus, bands = 80, progress = FALSE)
+
+candidates <- lsh_candidates(buckets)
+candidates
+
+```
+
+Now we can use lsh_compare() to apply a similarity function to the candidate pairs of documents.
+This entire process was able to help us efficiently estimate pairs who were likely to be matches rather than estimating the jaccard similarity for all potential pairs. 
+```{r, message = FALSE}
+lsh_compare(candidates, corpus, jaccard_similarity, progress = FALSE)
+
+````
